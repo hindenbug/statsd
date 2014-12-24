@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 require 'bundler/setup'
 require 'bundler/gem_tasks'
 
@@ -13,3 +14,6 @@ end
 
 require 'yard'
 YARD::Rake::YardocTask.new
+=======
+require "bundler/gem_tasks"
+>>>>>>> code commit for statsd metrics using queues
