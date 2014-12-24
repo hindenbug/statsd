@@ -21,7 +21,7 @@ module StatsdMetrics
       attr_accessor :logger
     end
 
-    def initialize(host='127.0.0.1', port=8125, queue_size=5)
+    def initialize(host='127.0.0.1', port=8125, queue_size=1000)
       @socket    = UDPSocket.new
       @host      = host
       @port      = port
