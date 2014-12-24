@@ -6,7 +6,7 @@ module StatsdMetrics
 
   class Statsd
 
-    attr_reader :namespace
+    attr_accessor :namespace, :queue_size, :batch_size
 
     # StatsD host. Defaults to 127.0.0.1.
     attr_accessor :host
@@ -25,7 +25,7 @@ module StatsdMetrics
       @socket    = UDPSocket.new
       @host      = host
       @port      = port
-      @reporter  = StatsdMetrics::Reporter.new(self, queue_size)
+      @reporter  = StatsdMetrics::Reporter.new(self, queue_size, batch_size)
     end
 
     def increment(stat, sample_rate=1)

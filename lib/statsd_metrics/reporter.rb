@@ -6,16 +6,15 @@ module StatsdMetrics
     attr_accessor :queue, :threads_num, :workers, :running
     attr_reader :statsd_host, :queue_size
 
-    def initialize(host, queue_size, threads=nil)
+    def initialize(host, queue_size, batch_size, threads=nil)
       @queue       = Queue.new
       @threads_num = threads || 1
       @workers     = []
-      @running     = true
+      @messages    = []
       @statsd_host = host
+      @batch_size  = batch_size
       @queue_size  = queue_size
     end
-
-    Job = Struct.new(:worker, :metric)
 
     def enqueue(metric, worker=StatsdJob)
       queue << Job.new(worker, metric)
@@ -27,23 +26,24 @@ module StatsdMetrics
 
     def process
       workers = threads_num.times.map do
-        Thread.new { process_jobs }
+        Thread.new do
+          messages << queue.pop
+          while messages.size >= batch_size
+            flush
+          end
+        end
       end
     end
 
     private
 
-    def process_jobs
+    def flush
       begin
-        empty! if queue.length > queue_size
+        unless messages.empty?
+          host.send_to_socket messages.join("\n")
+          messages.clear
+        end
       rescue ThreadError
-      end
-    end
-
-    def empty!
-      until queue.size.zero?
-        job = queue.pop rescue nil
-        job.worker.new.call(statsd_host, job.metric) if job
       end
       stop
     end
@@ -60,11 +60,5 @@ module StatsdMetrics
 
   end
 
-  class StatsdJob
-
-    def call(host, message)
-      host.send_to_socket(message)
-    end
-  end
-
 end
+
