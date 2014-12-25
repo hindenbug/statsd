@@ -8,7 +8,7 @@ module StatsdMetrics
 
     def initialize(host, queue_size, batch_size, threads=nil)
       @queue       = Queue.new
-      @threads_num = threads || 4
+      @threads_num = threads || 2
       @workers     = []
       @messages    = []
       @statsd_host = host

@@ -29,13 +29,15 @@ module StatsdMetrics
     end
 
     def increment(stat, sample_rate=1)
-      metric = form_metric(stat, 1, :c, sample_rate)
-      @reporter.enqueue(metric)
+      count stat, 1, sample_rate
     end
 
     def decrement(stat, sample_rate=1)
-      metric = form_metric(stat, -1, :c, sample_rate)
-      @reporter.enqueue(metric)
+      count stat, -1, sample_rate
+    end
+
+    def count(stat, count, sample_rate=1)
+      send_stat(stat, count, :c, sample_rate)
     end
 
     # Sends an arbitary gauge value for the given stat to the statsd server.
@@ -50,8 +52,7 @@ module StatsdMetrics
     # @example Report the current user count:
     #   $statsd.gauge('user.count', User.count)
     def gauge(stat, value, sample_rate=1)
-      metric = form_metric(stat, value, :g, sample_rate)
-      @reporter.enqueue(metric)
+      send_stat(stat, value, :g, sample_rate)
     end
 
     # Sends a timing (in ms) for the given stat to the statsd server. The
@@ -63,8 +64,7 @@ module StatsdMetrics
     # @param [Integer] ms timing in milliseconds
     # @param [Numeric] sample_rate sample rate, 1 for always
     def timing(stat, ms, sample_rate=1)
-      metric = form_metric(stat, ms, :ms, sample_rate)
-      @reporter.enqueue(metric)
+      send_stat(stat, ms, :ms, sample_rate)
     end
 
     # Reports execution time of the provided block using {#timing}.
@@ -92,12 +92,13 @@ module StatsdMetrics
 
     private
 
-    def form_metric(stat, delta, type, sample_rate=1)
+    def send_stat(stat, delta, type, sample_rate=1)
       if sample_rate == 1 or rand < sample_rate
         # Replace Ruby module scoping with '.' and reserved chars (: | @) with underscores.
-        stat = stat.to_s.gsub('::', '.').tr(':|@', '_')
-        rate = "|@#{sample_rate}" unless sample_rate == 1
-        return "#{namespace}.#{stat}:#{delta}|#{type}#{rate}"
+        stat   = stat.to_s.gsub('::', '.').tr(':|@', '_')
+        prefix = "#{@namespace}." unless @namespace.nil?
+        rate   = "|@#{sample_rate}" unless sample_rate == 1
+        @reporter.enqueue("#{prefix}#{stat}:#{delta}|#{type}#{rate}")
       end
     end
 
