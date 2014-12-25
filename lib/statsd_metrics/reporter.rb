@@ -8,30 +8,27 @@ module StatsdMetrics
 
     def initialize(host, queue_size, batch_size, threads=nil)
       @queue       = Queue.new
-      @threads_num = threads || 1
+      @threads_num = threads || 2
       @workers     = []
       @messages    = []
       @statsd_host = host
       @batch_size  = batch_size
       @queue_size  = queue_size
-      @mutex    = Mutex.new
+      @mutex       = Mutex.new
     end
 
     def enqueue(metric)
-      queue << metric
-
-      while queue.length > queue_size
-        process
-      end
+      process if (queue << metric).size >= queue_size
+      finish
     end
 
     def process
-      workers = threads_num.times.map do
+      workers = threads_num.times.map do |i|
         Thread.new do
+          Thread.current[:id] = i
           @mutex.synchronize do
-            messages << queue.pop
-            while messages.size >= batch_size
-              flush
+            while messages << queue.pop
+              flush if messages.size >= batch_size
             end
           end
         end
@@ -48,7 +45,6 @@ module StatsdMetrics
         end
       rescue ThreadError
       end
-      finish
     end
 
     def finish
@@ -62,5 +58,4 @@ module StatsdMetrics
     end
 
   end
-
 end
