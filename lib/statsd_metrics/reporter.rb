@@ -3,8 +3,8 @@ require "thread"
 module StatsdMetrics
   class Reporter
 
-    attr_accessor :queue, :threads_num, :workers, :running
-    attr_reader :statsd_host, :queue_size
+    attr_accessor :queue, :threads_num, :workers, :running, :messages
+    attr_reader :statsd_host, :queue_size, :batch_size
 
     def initialize(host, queue_size, batch_size, threads=nil)
       @queue       = Queue.new
@@ -14,10 +14,11 @@ module StatsdMetrics
       @statsd_host = host
       @batch_size  = batch_size
       @queue_size  = queue_size
+      @mutex    = Mutex.new
     end
 
-    def enqueue(metric, worker=StatsdJob)
-      queue << Job.new(worker, metric)
+    def enqueue(metric)
+      queue << metric
 
       while queue.length > queue_size
         process
@@ -27,9 +28,11 @@ module StatsdMetrics
     def process
       workers = threads_num.times.map do
         Thread.new do
-          messages << queue.pop
-          while messages.size >= batch_size
-            flush
+          @mutex.synchronize do
+            messages << queue.pop
+            while messages.size >= batch_size
+              flush
+            end
           end
         end
       end
@@ -45,10 +48,10 @@ module StatsdMetrics
         end
       rescue ThreadError
       end
-      stop
+      finish
     end
 
-    def stop
+    def finish
       workers.each(&:join)
       puts "========> Complete!"
     end
@@ -61,4 +64,3 @@ module StatsdMetrics
   end
 
 end
-
