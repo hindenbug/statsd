@@ -1,13 +1,13 @@
 require "statsd/version"
 require "statsd/reporter"
 require "socket"
+require "logger"
 
 module Statsd
 
   class Base
 
-    attr_accessor :namespace
-    attr_accessor :batching
+    attr_accessor :namespace, :counter
 
     # StatsD host. Defaults to 127.0.0.1.
     attr_accessor :host
@@ -24,6 +24,7 @@ module Statsd
       @socket     = UDPSocket.new
       @host       = host
       @port       = port
+      @counter    = 1
     end
 
     def increment(stat, sample_rate=1)
@@ -81,7 +82,6 @@ module Statsd
     end
 
     def send_to_socket(message)
-      puts message
       self.class.logger.debug { "Statsd: #{message}" } if self.class.logger
       @socket.send(message, 0, @host, @port)
     rescue => boom
@@ -103,11 +103,13 @@ module Statsd
 
   class Batch < Base
 
-    attr_accessor :batch_size
+    attr_accessor :batch_size, :wait_time
 
     def initialize(statsd, batch_size)
       @statsd     = statsd
       @batch_size = batch_size
+      @counter    = statsd.counter
+      @namespace  = statsd.namespace
       @reporter   = Statsd::Reporter.new(@statsd, batch_size)
     end
 
@@ -118,16 +120,20 @@ module Statsd
         stat   = stat.to_s.gsub('::', '.').tr(':|@', '_')
         prefix = "#{@namespace}." unless @namespace.nil?
         rate   = "|@#{sample_rate}" unless sample_rate == 1
-        @reporter.enqueue("#{prefix}#{stat}:#{delta}|#{type}#{rate}")
+        msg    = "#{prefix}#{stat}:#{delta}|#{type}#{rate}"
+        check_and_enqueue(msg)
       end
     end
 
-    def check
-      counter = 0
+    def check_and_enqueue(msg)
       if @reporter.queue.size == @reporter.batch_size
         logger = Logger.new('queue.log')
-        logger.warn "Queue at Max Capacity !!"
-        counter += 1
+        logger.warn "Queue at Max Capacity !"
+        #@wait_time = @counter * @counter
+        #@counter += 1
+      else
+        @reporter.enqueue(msg)
+        #@counter = 1
       end
     end
 
