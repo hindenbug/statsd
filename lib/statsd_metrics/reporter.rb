@@ -3,31 +3,22 @@ require "thread"
 module StatsdMetrics
   class Reporter
 
-    attr_accessor :queue, :threads_num, :workers, :running, :messages
-    attr_reader :statsd_host, :queue_size, :batch_size
+    attr_accessor :queue, :workers, :running, :messages
+    attr_reader :statsd_host, :batch_size
 
-    def initialize(host, queue_size, batch_size, threads=nil)
+    def initialize(host, batch_size)
       @queue       = Queue.new
-      @threads_num = threads || 2
       @workers     = []
       @messages    = []
       @statsd_host = host
       @batch_size  = batch_size
-      @queue_size  = queue_size
-      @mutex       = Mutex.new
     end
 
     def enqueue(metric)
-      # workers = threads_num.times.map { process if queue.size >= queue_size }
-      queue << metric
-      process if queue.size >= queue_size
-    end
-
-    def process
-      threads_num.times do
-        workers << Thread.new do
-          @mutex.synchronize { flush }
-        end
+      puts "inside queue"
+      workers << Thread.new do
+        queue << metric
+        flush if queue.size >= batch_size
       end
       finish
     end
@@ -37,7 +28,7 @@ module StatsdMetrics
     def flush
       begin
         while messages << queue.pop(true)
-          if messages.size >= batch_size
+          unless messages.empty?
             statsd_host.send_to_socket messages.join("\n")
             messages.clear
           end

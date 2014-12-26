@@ -6,7 +6,8 @@ module StatsdMetrics
 
   class Statsd
 
-    attr_accessor :namespace, :queue_size, :batch_size
+    attr_accessor :namespace
+    attr_accessor :batching
 
     # StatsD host. Defaults to 127.0.0.1.
     attr_accessor :host
@@ -21,11 +22,10 @@ module StatsdMetrics
       attr_accessor :logger
     end
 
-    def initialize(host='127.0.0.1', port=8125, queue_size=1000, batch_size=100)
-      @socket    = UDPSocket.new
-      @host      = host
-      @port      = port
-      @reporter  = StatsdMetrics::Reporter.new(self, queue_size, batch_size)
+    def initialize(host='127.0.0.1', port=8125)
+      @socket     = UDPSocket.new
+      @host       = host
+      @port       = port
     end
 
     def increment(stat, sample_rate=1)
@@ -83,6 +83,7 @@ module StatsdMetrics
     end
 
     def send_to_socket(message)
+      puts message
       self.class.logger.debug { "Statsd: #{message}" } if self.class.logger
       @socket.send(message, 0, @host, @port)
     rescue => boom
@@ -90,11 +91,32 @@ module StatsdMetrics
       nil
     end
 
-    private
+    protected
 
     def send_stat(stat, delta, type, sample_rate=1)
       if sample_rate == 1 or rand < sample_rate
-        # Replace Ruby module scoping with '.' and reserved chars (: | @) with underscores.
+        stat   = stat.to_s.gsub('::', '.').tr(':|@', '_')
+        prefix = "#{@namespace}." unless @namespace.nil?
+        rate   = "|@#{sample_rate}" unless sample_rate == 1
+        send_to_socket("#{prefix}#{stat}:#{delta}|#{type}#{rate}")
+      end
+    end
+  end
+
+  class Batch < Statsd
+
+    attr_accessor :batch_size
+
+    def initialize(statsd, batch_size)
+      @statsd     = statsd
+      @batch_size = batch_size
+      @reporter   = StatsdMetrics::Reporter.new(@statsd, batch_size)
+    end
+
+    protected
+
+    def send_stat(stat, delta, type, sample_rate=1)
+      if sample_rate == 1 or rand < sample_rate
         stat   = stat.to_s.gsub('::', '.').tr(':|@', '_')
         prefix = "#{@namespace}." unless @namespace.nil?
         rate   = "|@#{sample_rate}" unless sample_rate == 1
