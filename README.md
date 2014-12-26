@@ -20,7 +20,19 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+  #default host="127.0.0.1" and port=8125
+  $statsd = StatsdMetrics::Statsd.new
+  $statsd.increment("somestats")
+  
+  # using batching with queues
+  # takes 2 params; A statsd instance and batch_size (defaults to 100)
+  $batchd = StatsdMetrics::Batch.new($statsd, 100)
+  
+  #Makes use of ruby Queues internally
+  $batchd.increment("somestats")
+```
+
 
 ## Contributing
 
