@@ -101,7 +101,7 @@ module Statsd
     end
   end
 
-  class Batch < Statsd
+  class Batch < Base
 
     attr_accessor :batch_size
 
