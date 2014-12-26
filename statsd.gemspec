@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require 'statsd_metrics/version'
+require 'statsd/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "statsd_metrics"
-  spec.version       = StatsdMetrics::VERSION
+  spec.name          = "statsd"
+  spec.version       = Statsd::VERSION
   spec.authors       = ["hindenbug"]
   spec.email         = ["manoj.mk27@gmail.com"]
   spec.summary       = "A small gem to enqueue statsd metrics and send them to the statsd/grpahite server over UDP"

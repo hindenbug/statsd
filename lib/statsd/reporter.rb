@@ -1,6 +1,6 @@
 require "thread"
 
-module StatsdMetrics
+module Statsd
   class Reporter
 
     attr_accessor :queue, :workers, :running, :messages
