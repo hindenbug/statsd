@@ -15,9 +15,9 @@ module Statsd
     end
 
     def enqueue(metric)
-      puts "inside queue"
       workers << Thread.new do
         queue << metric
+        sleep 1
         flush if queue.size >= batch_size
       end
       finish

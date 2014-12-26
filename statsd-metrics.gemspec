@@ -3,7 +3,7 @@ $:.push File.expand_path("../lib", __FILE__)
 require 'statsd/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "statsd"
+  spec.name          = "statsd-metrics"
   spec.version       = Statsd::VERSION
   spec.authors       = ["hindenbug"]
   spec.email         = ["manoj.mk27@gmail.com"]

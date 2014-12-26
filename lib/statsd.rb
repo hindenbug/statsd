@@ -122,6 +122,15 @@ module Statsd
       end
     end
 
+    def check
+      counter = 0
+      if @reporter.queue.size == @reporter.batch_size
+        logger = Logger.new('queue.log')
+        logger.warn "Queue at Max Capacity !!"
+        counter += 1
+      end
+    end
+
   end
 
 end
