@@ -1,4 +1,5 @@
 # StatsdMetrics
+[![Gem Version](https://badge.fury.io/rb/statsd-metrics.svg)](http://badge.fury.io/rb/statsd-metrics)
 
 TODO: Write a gem description
 
