@@ -3,46 +3,43 @@ require "thread"
 module Statsd
   class Reporter
 
-    attr_accessor :queue, :workers, :running, :messages
-    attr_reader :statsd_host, :batch_size
+    attr_accessor :queue, :messages
+    attr_reader :statsd_host, :batch_size, :pool_size
 
-    def initialize(host, batch_size)
-      @queue       = Queue.new
-      @workers     = []
+    def initialize(statsd_host, batch_size, pool_size)
+      @pool_size   = pool_size || 1
+      @statsd_host = statsd_host
       @messages    = []
-      @statsd_host = host
+      @queue       = Queue.new
       @batch_size  = batch_size
+      @pool_size.times { |i| Thread.new { Thread.current[:id] = i; spawn_thread_pool } }
+    end
+
+    def spawn_thread_pool
+      loop do
+        if queue.size >= batch_size
+          begin
+            while messages << queue.pop(true)
+              flush
+            end
+          rescue ThreadError
+            flush #flush pending queue messages
+          end
+        end
+      end
     end
 
     def enqueue(metric)
-      workers << Thread.new do
-        queue << metric
-        flush if queue.size >= batch_size
-      end
-      finish
+      queue << metric
     end
 
     private
 
     def flush
-      begin
-        while messages << queue.pop(true)
-          unless messages.empty?
-            statsd_host.send_to_socket messages.join("\n")
-            messages.clear
-          end
-        end
-      rescue ThreadError
+      unless messages.empty?
+        send_to_socket messages.join("\n")
+        messages.clear
       end
-    end
-
-    def finish
-      workers.each(&:join)
-    end
-
-    def kill
-      workers.each(&:kill)
-      puts "========> Killed!"
     end
 
   end

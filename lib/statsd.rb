@@ -2,6 +2,7 @@ require "statsd/version"
 require "statsd/reporter"
 require "socket"
 require "logger"
+require 'forwardable'
 
 module Statsd
 
@@ -40,14 +41,10 @@ module Statsd
     end
 
     # Sends an arbitary gauge value for the given stat to the statsd server.
-    #
     # This is useful for recording things like available disk space,
     # memory usage, and the like, which have different semantics than
     # counters.
     #
-    # @param [String] stat stat name.
-    # @param [Numeric] gauge value.
-    # @param [Numeric] sample_rate sample rate, 1 for always
     # @example Report the current user count:
     #   $statsd.gauge('user.count', User.count)
     def gauge(stat, value, sample_rate=1)
@@ -58,20 +55,12 @@ module Statsd
     # sample_rate determines what percentage of the time this report is sent. The
     # statsd server then uses the sample_rate to correctly track the average
     # timing for the stat.
-    #
-    # @param [String] stat stat name
-    # @param [Integer] ms timing in milliseconds
-    # @param [Numeric] sample_rate sample rate, 1 for always
     def timing(stat, ms, sample_rate=1)
       send_stat(stat, ms, :ms, sample_rate)
     end
 
     # Reports execution time of the provided block using {#timing}.
     #
-    # @param [String] stat stat name
-    # @param [Numeric] sample_rate sample rate, 1 for always
-    # @yield The operation to be timed
-    # @see #timing
     # @example Report the time (in ms) taken to activate an account
     #   $statsd.time('account.activate') { @account.activate! }
     def time(stat, sample_rate=1)
@@ -103,14 +92,15 @@ module Statsd
 
   class Batch < Base
 
-    attr_accessor :batch_size, :wait_time
+    extend Forwardable
+
+    attr_accessor :batch_size, :pool_size
+    def_delegators :@reporter, :spawn_thread_pool, :spawn_thread_pool
 
     def initialize(statsd, batch_size)
-      @statsd     = statsd
       @batch_size = batch_size
-      @counter    = statsd.counter
       @namespace  = statsd.namespace
-      @reporter   = Statsd::Reporter.new(@statsd, batch_size)
+      @reporter   = Statsd::Reporter.new(statsd, batch_size, pool_size)
     end
 
     protected
@@ -129,14 +119,10 @@ module Statsd
       if @reporter.queue.size == @reporter.batch_size
         logger = Logger.new('queue.log')
         logger.warn "Queue at Max Capacity !"
-        #@wait_time = @counter * @counter
-        #@counter += 1
       else
         @reporter.enqueue(msg)
-        #@counter = 1
       end
     end
-
   end
 
 end
