@@ -37,7 +37,7 @@ module Statsd
 
     def flush
       unless messages.empty?
-        send_to_socket messages.join("\n")
+        statsd_host.send_to_socket messages.join("\n")
         messages.clear
       end
     end
