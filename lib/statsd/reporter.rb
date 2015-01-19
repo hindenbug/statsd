@@ -12,21 +12,7 @@ module Statsd
       @messages    = []
       @queue       = Queue.new
       @batch_size  = batch_size
-      @pool_size.times { |i| Thread.new { Thread.current[:id] = i; spawn_thread_pool } }
-    end
-
-    def spawn_thread_pool
-      loop do
-        if queue.size >= batch_size
-          begin
-            while messages << queue.pop(true)
-              flush
-            end
-          rescue ThreadError
-            flush #flush pending queue messages
-          end
-        end
-      end
+      @pool_size.times { |i| Thread.new { Thread.current[:id] = i; run! } }
     end
 
     def enqueue(metric)
@@ -35,11 +21,23 @@ module Statsd
 
     private
 
-    def flush
-      unless messages.empty?
-        statsd_host.send_to_socket messages.join("\n")
-        messages.clear
+    def run!
+      loop do
+        if queue.size >= batch_size
+          begin
+            while messages << queue.pop(true)
+              flush
+            end
+          rescue ThreadError
+            flush
+          end
+        end
       end
+    end
+
+    def flush
+      statsd_host.send_to_socket messages.join("\n")
+      messages.clear
     end
 
   end

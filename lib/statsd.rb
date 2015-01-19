@@ -92,10 +92,7 @@ module Statsd
 
   class Batch < Base
 
-    extend Forwardable
-
     attr_accessor :batch_size, :pool_size
-    def_delegators :@reporter, :spawn_thread_pool, :spawn_thread_pool
 
     def initialize(statsd, batch_size)
       @batch_size = batch_size
